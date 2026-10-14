@@ -1,14 +1,23 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
+
 import WorkoutCard from "../components/cards/WorkoutCard";
+
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DateCalendar } from "@mui/x-date-pickers";
+
 import { getWorkouts, getWorkoutAnalytics } from "../api";
+
 import { CircularProgress } from "@mui/material";
+
 import { BarChart } from "@mui/x-charts/BarChart";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { LineChart } from "@mui/x-charts/LineChart";
+
+// ======================================================
+// STYLED COMPONENTS
+// ======================================================
 
 const Container = styled.div`
   flex: 1;
@@ -58,6 +67,10 @@ const Right = styled.div`
   min-width: 0;
 `;
 
+// ======================================================
+// SUMMARY CARDS
+// ======================================================
+
 const AnalyticsWrapper = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -99,6 +112,95 @@ const AnalyticsValue = styled.div`
   text-transform: capitalize;
 `;
 
+// ======================================================
+// FITNESS INSIGHTS
+// ======================================================
+
+const InsightsWrapper = styled.div`
+  padding: 0px 16px;
+  margin-bottom: 28px;
+`;
+
+const InsightsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const InsightCard = styled.div`
+  padding: 20px;
+  border: 1px solid ${({ theme }) => theme.text_primary + 20};
+  border-radius: 14px;
+  box-shadow: 1px 6px 20px 0px ${({ theme }) => theme.primary + 15};
+`;
+
+const InsightLabel = styled.div`
+  font-size: 14px;
+  color: ${({ theme }) => theme.text_secondary};
+  margin-bottom: 8px;
+`;
+
+const InsightValue = styled.div`
+  font-size: 24px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.text_primary};
+`;
+
+// ======================================================
+// LAST TRAINED
+// ======================================================
+
+const RecoverySection = styled.div`
+  padding: 0px 16px;
+  margin-bottom: 28px;
+`;
+
+const RecoveryGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const RecoveryCard = styled.div`
+  padding: 18px;
+  border: 1px solid ${({ theme }) => theme.text_primary + 20};
+  border-radius: 14px;
+  box-shadow: 1px 6px 20px 0px ${({ theme }) => theme.primary + 15};
+`;
+
+const RecoveryCategory = styled.div`
+  font-size: 18px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: ${({ theme }) => theme.text_primary};
+`;
+
+const RecoveryText = styled.div`
+  font-size: 14px;
+  margin-top: 8px;
+  color: ${({ theme }) => theme.text_secondary};
+`;
+
+// ======================================================
+// CHARTS
+// ======================================================
+
 const ChartsGrid = styled.div`
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -125,6 +227,10 @@ const ChartTitle = styled.div`
   margin-bottom: 16px;
 `;
 
+// ======================================================
+// PROGRESS
+// ======================================================
+
 const ProgressSection = styled.div`
   padding: 0px 16px;
   margin-bottom: 30px;
@@ -139,6 +245,38 @@ const ProgressGrid = styled.div`
     grid-template-columns: 1fr;
   }
 `;
+
+const ProgressInfoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+
+  @media (max-width: 500px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ProgressInfoItem = styled.div`
+  padding: 12px;
+  border-radius: 10px;
+  background: ${({ theme }) => theme.bgLight || theme.bg};
+`;
+
+const ProgressLabel = styled.div`
+  font-size: 13px;
+  color: ${({ theme }) => theme.text_secondary};
+  margin-bottom: 5px;
+`;
+
+const ProgressValue = styled.div`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.text_primary};
+`;
+
+// ======================================================
+// DAILY WORKOUT SECTION
+// ======================================================
 
 const Section = styled.div`
   display: flex;
@@ -176,12 +314,22 @@ const LoadingWrapper = styled.div`
   padding: 30px;
 `;
 
+// ======================================================
+// COMPONENT
+// ======================================================
+
 const Workouts = () => {
   const [todaysWorkouts, setTodaysWorkouts] = useState([]);
   const [loading, setLoading] = useState(false);
+
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [date, setDate] = useState("");
   const [analytics, setAnalytics] = useState(null);
+
+  const [date, setDate] = useState("");
+
+  // ====================================================
+  // FETCH WORKOUTS FOR SELECTED DATE
+  // ====================================================
 
   const getTodaysWorkout = async () => {
     try {
@@ -189,19 +337,21 @@ const Workouts = () => {
 
       const token = localStorage.getItem("fittrack-app-token");
 
-      const response = await getWorkouts(
-        token,
-        date ? `?date=${date}` : ""
-      );
+      const response = await getWorkouts(token, date ? `?date=${date}` : "");
 
       setTodaysWorkouts(response?.data?.todaysWorkouts || []);
     } catch (error) {
       console.error("Failed to fetch workouts:", error);
+
       setTodaysWorkouts([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // ====================================================
+  // FETCH ANALYTICS
+  // ====================================================
 
   const getAnalytics = async () => {
     try {
@@ -211,15 +361,19 @@ const Workouts = () => {
 
       const response = await getWorkoutAnalytics(token, 30);
 
-      setAnalytics(response.data);
-
-      console.log("Workout Analytics:", response.data);
+      setAnalytics(response?.data || null);
     } catch (error) {
       console.error("Failed to fetch workout analytics:", error);
+
+      setAnalytics(null);
     } finally {
       setAnalyticsLoading(false);
     }
   };
+
+  // ====================================================
+  // EFFECTS
+  // ====================================================
 
   useEffect(() => {
     getTodaysWorkout();
@@ -229,13 +383,31 @@ const Workouts = () => {
     getAnalytics();
   }, []);
 
+  // ====================================================
+  // ANALYTICS DATA
+  // ====================================================
+
   const dailyActivity = analytics?.dailyActivity || [];
+
   const categories = analytics?.categoryBreakdown || [];
+
   const exerciseProgress = analytics?.exerciseProgress || [];
+
+  const exerciseInsights = analytics?.exerciseInsights || [];
+
+  const daysSinceCategory = analytics?.insights?.daysSinceCategory || {};
+
+  // ====================================================
+  // UI
+  // ====================================================
 
   return (
     <Container>
       <Wrapper>
+        {/* ============================================= */}
+        {/* LEFT SIDE - CALENDAR */}
+        {/* ============================================= */}
+
         <Left>
           <Title>Select Date</Title>
 
@@ -250,6 +422,10 @@ const Workouts = () => {
           </LocalizationProvider>
         </Left>
 
+        {/* ============================================= */}
+        {/* RIGHT SIDE */}
+        {/* ============================================= */}
+
         <Right>
           {analyticsLoading ? (
             <LoadingWrapper>
@@ -257,10 +433,15 @@ const Workouts = () => {
             </LoadingWrapper>
           ) : (
             <>
+              {/* ======================================= */}
+              {/* BASIC SUMMARY */}
+              {/* ======================================= */}
+
               {analytics?.summary && (
                 <AnalyticsWrapper>
                   <AnalyticsCard>
                     <AnalyticsTitle>Total Workouts</AnalyticsTitle>
+
                     <AnalyticsValue>
                       {analytics.summary.totalWorkouts}
                     </AnalyticsValue>
@@ -268,6 +449,7 @@ const Workouts = () => {
 
                   <AnalyticsCard>
                     <AnalyticsTitle>Active Days</AnalyticsTitle>
+
                     <AnalyticsValue>
                       {analytics.summary.activeDays}
                     </AnalyticsValue>
@@ -275,6 +457,7 @@ const Workouts = () => {
 
                   <AnalyticsCard>
                     <AnalyticsTitle>Calories Burned</AnalyticsTitle>
+
                     <AnalyticsValue>
                       {analytics.summary.totalCalories} kcal
                     </AnalyticsValue>
@@ -282,12 +465,240 @@ const Workouts = () => {
 
                   <AnalyticsCard>
                     <AnalyticsTitle>Most Trained Category</AnalyticsTitle>
+
                     <AnalyticsValue>
                       {analytics.summary.mostTrainedCategory || "N/A"}
                     </AnalyticsValue>
                   </AnalyticsCard>
                 </AnalyticsWrapper>
               )}
+
+              {/* ======================================= */}
+              {/* FITNESS INSIGHTS */}
+              {/* ======================================= */}
+
+              {analytics?.insights && (
+                <InsightsWrapper>
+                  <SecTitle
+                    style={{
+                      marginBottom: "18px",
+                    }}
+                  >
+                    Fitness Insights
+                  </SecTitle>
+
+                  <InsightsGrid>
+                    <InsightCard>
+                      <InsightLabel>🔥 Current Streak</InsightLabel>
+
+                      <InsightValue>
+                        {analytics.insights.currentStreak}{" "}
+                        {analytics.insights.currentStreak === 1
+                          ? "day"
+                          : "days"}
+                      </InsightValue>
+                    </InsightCard>
+
+                    <InsightCard>
+                      <InsightLabel>📅 This Week</InsightLabel>
+
+                      <InsightValue>
+                        {analytics.insights.weeklyComparison
+                          ?.thisWeekWorkouts || 0}{" "}
+                        workouts
+                      </InsightValue>
+                    </InsightCard>
+
+                    <InsightCard>
+                      <InsightLabel>📈 Weekly Change</InsightLabel>
+
+                      <InsightValue>
+                        {(analytics.insights.weeklyComparison
+                          ?.changePercentage || 0) > 0
+                          ? "+"
+                          : ""}
+                        {analytics.insights.weeklyComparison
+                          ?.changePercentage || 0}
+                        %
+                      </InsightValue>
+                    </InsightCard>
+
+                    <InsightCard>
+                      <InsightLabel>🎯 Consistency</InsightLabel>
+
+                      <InsightValue>
+                        {analytics.insights.workoutConsistency || 0}%
+                      </InsightValue>
+                    </InsightCard>
+                  </InsightsGrid>
+                </InsightsWrapper>
+              )}
+
+              {/* ======================================= */}
+              {/* LAST TRAINED */}
+              {/* ======================================= */}
+
+              {Object.keys(daysSinceCategory).length > 0 && (
+                <RecoverySection>
+                  <SecTitle
+                    style={{
+                      marginBottom: "18px",
+                    }}
+                  >
+                    Last Trained
+                  </SecTitle>
+
+                  <RecoveryGrid>
+                    {Object.entries(daysSinceCategory).map(
+                      ([category, days]) => (
+                        <RecoveryCard key={category}>
+                          <RecoveryCategory>{category}</RecoveryCategory>
+
+                          <RecoveryText>
+                            {days === 0
+                              ? "Trained today"
+                              : days === 1
+                                ? "Last trained yesterday"
+                                : `Last trained ${days} days ago`}
+                          </RecoveryText>
+                        </RecoveryCard>
+                      ),
+                    )}
+                  </RecoveryGrid>
+                </RecoverySection>
+              )}
+
+              {/* ======================================= */}
+              {/* PROGRESS INSIGHTS */}
+              {/* ======================================= */}
+
+              {exerciseInsights.length > 0 && (
+                <ProgressSection>
+                  <SecTitle
+                    style={{
+                      marginBottom: "18px",
+                    }}
+                  >
+                    Progress Insights
+                  </SecTitle>
+
+                  <ProgressGrid>
+                    {exerciseInsights.map((item) => (
+                      <ChartCard key={item.exercise}>
+                        <ChartTitle
+                          style={{
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {item.exercise}
+                        </ChartTitle>
+
+                        <ProgressInfoGrid>
+                          {/* WEIGHT BASED EXERCISE */}
+                          {item.type === "weight" && (
+                            <>
+                              <ProgressInfoItem>
+                                <ProgressLabel>Starting Weight</ProgressLabel>
+
+                                <ProgressValue>
+                                  {item.startingWeight} kg
+                                </ProgressValue>
+                              </ProgressInfoItem>
+
+                              <ProgressInfoItem>
+                                <ProgressLabel>Current Weight</ProgressLabel>
+
+                                <ProgressValue>
+                                  {item.currentWeight} kg
+                                </ProgressValue>
+                              </ProgressInfoItem>
+
+                              <ProgressInfoItem>
+                                <ProgressLabel>Best Weight</ProgressLabel>
+
+                                <ProgressValue>
+                                  {item.bestWeight} kg
+                                </ProgressValue>
+                              </ProgressInfoItem>
+
+                              <ProgressInfoItem>
+                                <ProgressLabel>Progress</ProgressLabel>
+
+                                <ProgressValue>
+                                  {item.progressPercentage > 0 ? "+" : ""}
+                                  {item.progressPercentage}%
+                                </ProgressValue>
+                              </ProgressInfoItem>
+                            </>
+                          )}
+
+                          {/* DURATION BASED EXERCISE */}
+                          {item.type === "duration" && (
+                            <>
+                              <ProgressInfoItem>
+                                <ProgressLabel>Starting Duration</ProgressLabel>
+
+                                <ProgressValue>
+                                  {item.startingDuration} min
+                                </ProgressValue>
+                              </ProgressInfoItem>
+
+                              <ProgressInfoItem>
+                                <ProgressLabel>Current Duration</ProgressLabel>
+
+                                <ProgressValue>
+                                  {item.currentDuration} min
+                                </ProgressValue>
+                              </ProgressInfoItem>
+
+                              <ProgressInfoItem>
+                                <ProgressLabel>Longest Session</ProgressLabel>
+
+                                <ProgressValue>
+                                  {item.longestDuration} min
+                                </ProgressValue>
+                              </ProgressInfoItem>
+
+                              <ProgressInfoItem>
+                                <ProgressLabel>Progress</ProgressLabel>
+
+                                <ProgressValue>
+                                  {item.progressPercentage > 0 ? "+" : ""}
+                                  {item.progressPercentage}%
+                                </ProgressValue>
+                              </ProgressInfoItem>
+                            </>
+                          )}
+
+                          {/* COMMON FIELDS */}
+
+                          <ProgressInfoItem>
+                            <ProgressLabel>Total Sessions</ProgressLabel>
+
+                            <ProgressValue>{item.totalSessions}</ProgressValue>
+                          </ProgressInfoItem>
+
+                          <ProgressInfoItem>
+                            <ProgressLabel>Last Performed</ProgressLabel>
+
+                            <ProgressValue>
+                              {item.daysSinceLastPerformed === 0
+                                ? "Today"
+                                : item.daysSinceLastPerformed === 1
+                                  ? "Yesterday"
+                                  : `${item.daysSinceLastPerformed} days ago`}
+                            </ProgressValue>
+                          </ProgressInfoItem>
+                        </ProgressInfoGrid>
+                      </ChartCard>
+                    ))}
+                  </ProgressGrid>
+                </ProgressSection>
+              )}
+
+              {/* ======================================= */}
+              {/* ACTIVITY + CATEGORY CHARTS */}
+              {/* ======================================= */}
 
               <ChartsGrid>
                 <ChartCard>
@@ -298,28 +709,28 @@ const Workouts = () => {
                       xAxis={[
                         {
                           scaleType: "band",
+
                           data: dailyActivity.map((item) =>
-                            new Date(item.date).toLocaleDateString("en-IN", {
+                            new Date(
+                              `${item.date}T00:00:00`,
+                            ).toLocaleDateString("en-IN", {
                               day: "2-digit",
                               month: "short",
-                            })
+                            }),
                           ),
                         },
                       ]}
                       series={[
                         {
-                          data: dailyActivity.map(
-                            (item) => item.calories
-                          ),
+                          data: dailyActivity.map((item) => item.calories),
+
                           label: "Calories Burned",
                         },
                       ]}
                       height={280}
                     />
                   ) : (
-                    <EmptyMessage>
-                      No activity data available yet.
-                    </EmptyMessage>
+                    <EmptyMessage>No activity data available yet.</EmptyMessage>
                   )}
                 </ChartCard>
 
@@ -335,6 +746,7 @@ const Workouts = () => {
                             value: item.count,
                             label: item.category,
                           })),
+
                           innerRadius: 35,
                           outerRadius: 100,
                           paddingAngle: 4,
@@ -344,16 +756,22 @@ const Workouts = () => {
                       height={280}
                     />
                   ) : (
-                    <EmptyMessage>
-                      No category data available yet.
-                    </EmptyMessage>
+                    <EmptyMessage>No category data available yet.</EmptyMessage>
                   )}
                 </ChartCard>
               </ChartsGrid>
 
+              {/* ======================================= */}
+              {/* EXERCISE PROGRESS CHART */}
+              {/* ======================================= */}
+
               {exerciseProgress.length > 0 && (
                 <ProgressSection>
-                  <SecTitle style={{ marginBottom: "18px" }}>
+                  <SecTitle
+                    style={{
+                      marginBottom: "18px",
+                    }}
+                  >
                     Exercise Progress
                   </SecTitle>
 
@@ -372,21 +790,22 @@ const Workouts = () => {
                           xAxis={[
                             {
                               scaleType: "point",
+
                               data: exercise.history.map((item) =>
-                                new Date(
-                                  item.date
-                                ).toLocaleDateString("en-IN", {
-                                  day: "2-digit",
-                                  month: "short",
-                                })
+                                new Date(item.date).toLocaleDateString(
+                                  "en-IN",
+                                  {
+                                    day: "2-digit",
+                                    month: "short",
+                                  },
+                                ),
                               ),
                             },
                           ]}
                           series={[
                             {
-                              data: exercise.history.map(
-                                (item) => item.weight
-                              ),
+                              data: exercise.history.map((item) => item.weight),
+
                               label: "Weight (kg)",
                             },
                           ]}
@@ -399,6 +818,10 @@ const Workouts = () => {
               )}
             </>
           )}
+
+          {/* =========================================== */}
+          {/* WORKOUTS OF SELECTED DATE */}
+          {/* =========================================== */}
 
           <Section>
             <SecTitle>
@@ -413,15 +836,10 @@ const Workouts = () => {
               <CardWrapper>
                 {todaysWorkouts.length > 0 ? (
                   todaysWorkouts.map((workout) => (
-                    <WorkoutCard
-                      key={workout._id}
-                      workout={workout}
-                    />
+                    <WorkoutCard key={workout._id} workout={workout} />
                   ))
                 ) : (
-                  <EmptyMessage>
-                    No workouts found for this date.
-                  </EmptyMessage>
+                  <EmptyMessage>No workouts found for this date.</EmptyMessage>
                 )}
               </CardWrapper>
             )}
