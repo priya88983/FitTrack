@@ -5,6 +5,7 @@ import {
   addWorkout,
   getUserDashboard,
   getWorkoutsByDate,
+  getWorkoutAnalytics,
   getUserDiet,
   chatWithBot,
   editDietPlan,
@@ -17,6 +18,7 @@ router.post("/signup", UserRegister);
 router.post("/signin", UserLogin);
 
 router.get("/dashboard", verifyToken, getUserDashboard);
+router.get("/workout/analytics", verifyToken, getWorkoutAnalytics);
 router.get("/workout", verifyToken, getWorkoutsByDate);
 router.post("/workout", verifyToken, addWorkout);
 router.get("/dietDetails", verifyToken, getUserDiet);

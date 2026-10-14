@@ -8,6 +8,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { mailsender } from "./mailsender.js";
 dotenv.config();
 
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
@@ -76,58 +77,88 @@ export const UserLogin = async (req, res, next) => {
 export const getUserDashboard = async (req, res, next) => {
   try {
     const userId = req.user?.id;
+
     const user = await User.findById(userId);
+
     if (!user) {
       return next(createError(404, "User not found"));
     }
 
-    const currentDateFormatted = new Date();
+    const currentDate = new Date();
+
     const startToday = new Date(
-      currentDateFormatted.getFullYear(),
-      currentDateFormatted.getMonth(),
-      currentDateFormatted.getDate()
-    );
-    const endToday = new Date(
-      currentDateFormatted.getFullYear(),
-      currentDateFormatted.getMonth(),
-      currentDateFormatted.getDate() + 1
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate()
     );
 
-    //calculte total calories burnt
-    const totalCaloriesBurnt = await Workout.aggregate([
-      { $match: { user: user._id, date: { $gte: startToday, $lt: endToday } } },
+    const endToday = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate() + 1
+    );
+
+    // Total calories burned today
+    const totalCaloriesResult = await Workout.aggregate([
+      {
+        $match: {
+          user: user._id,
+          date: {
+            $gte: startToday,
+            $lt: endToday,
+          },
+        },
+      },
       {
         $group: {
           _id: null,
-          totalCaloriesBurnt: { $sum: "$caloriesBurned" },
+          totalCaloriesBurnt: {
+            $sum: "$caloriesBurned",
+          },
         },
       },
     ]);
 
-    //Calculate total no of workouts
-    const totalWorkouts = await Workout.countDocuments({
-      user: userId,
-      date: { $gte: startToday, $lt: endToday },
-    });
-
-    //Calculate average calories burnt per workout
-    const avgCaloriesBurntPerWorkout =
-      totalCaloriesBurnt.length > 0
-        ? totalCaloriesBurnt[0].totalCaloriesBurnt / totalWorkouts
+    const totalCaloriesBurnt =
+      totalCaloriesResult.length > 0
+        ? totalCaloriesResult[0].totalCaloriesBurnt
         : 0;
 
-    // Fetch category of workouts
+    // Total workouts today
+    const totalWorkouts = await Workout.countDocuments({
+      user: user._id,
+      date: {
+        $gte: startToday,
+        $lt: endToday,
+      },
+    });
+
+    // Average calories burned per workout
+    const avgCaloriesBurntPerWorkout =
+      totalWorkouts > 0
+        ? totalCaloriesBurnt / totalWorkouts
+        : 0;
+
+    // Category-wise calories
     const categoryCalories = await Workout.aggregate([
-      { $match: { user: user._id, date: { $gte: startToday, $lt: endToday } } },
+      {
+        $match: {
+          user: user._id,
+          date: {
+            $gte: startToday,
+            $lt: endToday,
+          },
+        },
+      },
       {
         $group: {
           _id: "$category",
-          totalCaloriesBurnt: { $sum: "$caloriesBurned" },
+          totalCaloriesBurnt: {
+            $sum: "$caloriesBurned",
+          },
         },
       },
     ]);
-
-    //Format category data for pie chart
 
     const pieChartData = categoryCalories.map((category, index) => ({
       id: index,
@@ -135,62 +166,72 @@ export const getUserDashboard = async (req, res, next) => {
       label: category._id,
     }));
 
+    // Last 7 days calories
     const weeks = [];
     const caloriesBurnt = [];
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date(
-        currentDateFormatted.getTime() - i * 24 * 60 * 60 * 1000
+        currentDate.getTime() - i * 24 * 60 * 60 * 1000
       );
-      weeks.push(`${date.getDate()}th`);
+
+      weeks.push(
+        `${date.getDate()}/${date.getMonth() + 1}`
+      );
 
       const startOfDay = new Date(
         date.getFullYear(),
         date.getMonth(),
         date.getDate()
       );
+
       const endOfDay = new Date(
         date.getFullYear(),
         date.getMonth(),
         date.getDate() + 1
       );
 
-      const weekData = await Workout.aggregate([
+      const dayData = await Workout.aggregate([
         {
           $match: {
             user: user._id,
-            date: { $gte: startOfDay, $lt: endOfDay },
+            date: {
+              $gte: startOfDay,
+              $lt: endOfDay,
+            },
           },
         },
         {
           $group: {
-            _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-            totalCaloriesBurnt: { $sum: "$caloriesBurned" },
+            _id: null,
+            totalCaloriesBurnt: {
+              $sum: "$caloriesBurned",
+            },
           },
-        },
-        {
-          $sort: { _id: 1 }, // Sort by date in ascending order
         },
       ]);
 
       caloriesBurnt.push(
-        weekData[0]?.totalCaloriesBurnt ? weekData[0]?.totalCaloriesBurnt : 0
+        dayData.length > 0
+          ? dayData[0].totalCaloriesBurnt
+          : 0
       );
     }
 
     return res.status(200).json({
-      totalCaloriesBurnt:
-        totalCaloriesBurnt.length > 0
-          ? totalCaloriesBurnt[0].totalCaloriesBurnt
-          : 0,
-      totalWorkouts: totalWorkouts,
-      avgCaloriesBurntPerWorkout: avgCaloriesBurntPerWorkout,
+      totalCaloriesBurnt,
+      totalWorkouts,
+      avgCaloriesBurntPerWorkout,
+
       totalWeeksCaloriesBurnt: {
-        weeks: weeks,
+        weeks,
         caloriesBurned: caloriesBurnt,
       },
-      pieChartData: pieChartData,
+
+      pieChartData,
     });
   } catch (err) {
+    console.error("Dashboard Error:", err);
     next(err);
   }
 };
@@ -233,14 +274,192 @@ export const getWorkoutsByDate = async (req, res, next) => {
   }
 };
 
-// Function to calculate calories burnt for a workout
-const calculateCaloriesBurnt = (workoutDetails) => {
-  const durationInMinutes = parseInt(workoutDetails.duration);
-  const weightInKg = parseInt(workoutDetails.weight);
-  const caloriesBurntPerMinute = 5; // Sample value, actual calculation may vary
-  return durationInMinutes * caloriesBurntPerMinute * weightInKg;
+export const getWorkoutAnalytics = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    // Default: analyse last 30 days
+    let days = Number(req.query.days) || 30;
+
+    // Avoid unnecessarily huge queries
+    days = Math.min(Math.max(days, 1), 365);
+
+    const endDate = new Date();
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - (days - 1));
+    startDate.setHours(0, 0, 0, 0);
+
+    // Get workouts of the logged-in user
+    const workouts = await Workout.find({
+      user: userId,
+      date: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+    }).sort({ date: 1 });
+
+    // ----------------------------
+    // 1. BASIC SUMMARY
+    // ----------------------------
+
+    const totalWorkouts = workouts.length;
+
+    const totalCalories = workouts.reduce(
+      (sum, workout) => sum + (workout.caloriesBurned || 0),
+      0
+    );
+
+    const totalDuration = workouts.reduce(
+      (sum, workout) => sum + (workout.duration || 0),
+      0
+    );
+
+    // Count unique workout days
+    const activeDaysSet = new Set();
+
+    workouts.forEach((workout) => {
+      const date = new Date(workout.date).toISOString().split("T")[0];
+      activeDaysSet.add(date);
+    });
+
+    const activeDays = activeDaysSet.size;
+
+    // ----------------------------
+    // 2. CATEGORY BREAKDOWN
+    // ----------------------------
+
+    const categoryMap = {};
+
+    workouts.forEach((workout) => {
+      const category = workout.category;
+
+      if (!categoryMap[category]) {
+        categoryMap[category] = {
+          category,
+          count: 0,
+          calories: 0,
+        };
+      }
+
+      categoryMap[category].count += 1;
+      categoryMap[category].calories += workout.caloriesBurned || 0;
+    });
+
+    const categoryBreakdown = Object.values(categoryMap);
+
+    // ----------------------------
+    // 3. DAILY ACTIVITY
+    // ----------------------------
+
+    const dailyMap = {};
+
+    workouts.forEach((workout) => {
+      const date = new Date(workout.date).toISOString().split("T")[0];
+
+      if (!dailyMap[date]) {
+        dailyMap[date] = {
+          date,
+          workouts: 0,
+          calories: 0,
+          duration: 0,
+        };
+      }
+
+      dailyMap[date].workouts += 1;
+      dailyMap[date].calories += workout.caloriesBurned || 0;
+      dailyMap[date].duration += workout.duration || 0;
+    });
+
+    const dailyActivity = Object.values(dailyMap);
+
+    // ----------------------------
+    // 4. EXERCISE PROGRESS
+    // ----------------------------
+
+    const exerciseMap = {};
+
+    workouts.forEach((workout) => {
+      const exercise = workout.workoutName;
+
+      if (!exerciseMap[exercise]) {
+        exerciseMap[exercise] = [];
+      }
+
+      exerciseMap[exercise].push({
+        date: workout.date,
+        weight: workout.weight || 0,
+        sets: workout.sets || 0,
+        reps: workout.reps || 0,
+      });
+    });
+
+    const exerciseProgress = Object.entries(exerciseMap).map(
+      ([exercise, history]) => ({
+        exercise,
+        history,
+      })
+    );
+
+    // ----------------------------
+    // 5. MOST TRAINED CATEGORY
+    // ----------------------------
+
+    let mostTrainedCategory = null;
+
+    if (categoryBreakdown.length > 0) {
+      mostTrainedCategory = categoryBreakdown.reduce((max, category) =>
+        category.count > max.count ? category : max
+      ).category;
+    }
+
+    // Final response
+    return res.status(200).json({
+      period: {
+        days,
+        startDate,
+        endDate,
+      },
+
+      summary: {
+        totalWorkouts,
+        activeDays,
+        totalCalories,
+        totalDuration,
+        mostTrainedCategory,
+      },
+
+      categoryBreakdown,
+      dailyActivity,
+      exerciseProgress,
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
+// Function to calculate calories burnt for a workout
+const calculateCaloriesBurnt = (workoutDetails) => {
+  const duration = Number(workoutDetails.duration);
+
+  if (!duration || duration <= 0) {
+    return 0;
+  }
+
+  const category = workoutDetails.category?.trim().toLowerCase();
+
+  const caloriesPerMinute = {
+    strength: 6,
+    cardio: 8,
+    running: 10,
+    cycling: 7,
+    yoga: 3,
+  };
+
+  const rate = caloriesPerMinute[category] || 5;
+
+  return Math.round(duration * rate);
+};
 export const addWorkout = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -277,9 +496,9 @@ export const addWorkout = async (req, res, next) => {
       }
 
       caloriesBurned = calculateCaloriesBurnt({
-        duration: duration != null ? Number(duration) : undefined,
-        weight: weight != null ? Number(weight) : undefined,
-      });
+      duration: duration != null ? Number(duration) : undefined,
+      category,
+    });
 
       return {
         user: userId,
